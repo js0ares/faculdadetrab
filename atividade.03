@@ -1,0 +1,263 @@
+import requests
+import folium
+from folium import Marker, Icon, CircleMarker
+from datetime import datetime
+import sys
+
+
+class RastreadorOnibusAPI
+    Sistema de rastreamento de ônibus usando API SPTrans OlhoVivo
+    
+    def __init__(self, chave_api)
+        if not chave_api or chave_api == INSIRA_SEU_TOKEN_AQUI
+            print(n + !70)
+            print(ERRO Token da API não configurado!)
+            print(!70)
+            print(n📌 Como obter seu token)
+            print(   1. Acesse httpswww.sptrans.com.brdesenvolvedores)
+            print(   2. Cadastre-se no sistema OlhoVivo)
+            print(   3. Copie seu token de acesso)
+            print(   4. Cole no início deste script na variável CHAVE_APIn)
+            sys.exit(1)
+        
+        self.chave_api = chave_api
+        self.sessao_http = requests.Session()
+        self.url_base = httpapi.olhovivo.sptrans.com.brv2.1
+        self._realizar_autenticacao()
+    
+    def _realizar_autenticacao(self)
+        Autentica na API da SPTrans
+        endpoint = f{self.url_base}LoginAutenticartoken={self.chave_api}
+        
+        try
+            resposta = self.sessao_http.post(endpoint, timeout=10)
+            
+            if resposta.text.lower() == true
+                print(✅ Conexão estabelecida com sucesso!)
+                return True
+            else
+                print(❌ Falha na autenticação - Token inválido)
+                sys.exit(1)
+                
+        except requests.exceptions.Timeout
+            print(❌ Tempo esgotado ao conectar com a API)
+            sys.exit(1)
+        except Exception as erro
+            print(f❌ Erro na autenticação {erro})
+            sys.exit(1)
+    
+    def pesquisar_linhas(self, termo)
+        Busca linhas de ônibus por termo
+        endpoint = f{self.url_base}LinhaBuscartermosBusca={termo}
+        resposta = self.sessao_http.get(endpoint)
+        return resposta.json()
+    
+    def obter_paradas_linha(self, cod_linha)
+        Obtém todas as paradas de uma linha específica
+        endpoint = f{self.url_base}ParadaBuscarParadasPorLinhacodigoLinha={cod_linha}
+        resposta = self.sessao_http.get(endpoint)
+        return resposta.json()
+    
+    def obter_posicoes_veiculos(self, cod_linha)
+        Obtém posições em tempo real dos veículos
+        endpoint = f{self.url_base}PosicaoLinhacodigoLinha={cod_linha}
+        resposta = self.sessao_http.get(endpoint)
+        return resposta.json()
+    
+    def gerar_mapa_interativo(self, cod_linha, identificador_linha)
+        Gera mapa interativo com paradas e veículos
+        
+        print(fn🗺️  Gerando mapa para linha {identificador_linha}...)
+        
+        # Obter paradas
+        lista_paradas = self.obter_paradas_linha(cod_linha)
+        qtd_paradas = len(lista_paradas)
+        print(f   📍 Paradas encontradas {qtd_paradas})
+        
+        # Obter posições dos veículos
+        dados_veiculos = self.obter_posicoes_veiculos(cod_linha)
+        lista_veiculos = dados_veiculos.get('vs', [])
+        horario_ref = dados_veiculos.get('hr', 'Indisponível')
+        qtd_veiculos = len(lista_veiculos)
+        print(f   🚌 Veículos em circulação {qtd_veiculos})
+        print(f   🕐 Timestamp {horario_ref})
+        
+        # Calcular centro do mapa
+        if lista_paradas
+            lat_media = sum(parada['py'] for parada in lista_paradas)  qtd_paradas
+            lon_media = sum(parada['px'] for parada in lista_paradas)  qtd_paradas
+        else
+            # Coordenadas padrão (Centro de São Paulo)
+            lat_media, lon_media = -23.5505, -46.6333
+        
+        # Criar mapa base
+        mapa_folium = folium.Map(
+            location=[lat_media, lon_media],
+            zoom_start=14,
+            tiles='OpenStreetMap',
+            control_scale=True
+        )
+        
+        # Adicionar paradas ao mapa
+        for parada in lista_paradas
+            info_popup = f
+            div style=font-family Arial; width 250px;
+                h4 style=margin 0 0 10px 0; color #1976D2;
+                    📍 {parada['np']}
+                h4
+                p style=margin 5px 0;bLocalb {parada['ed']}p
+                p style=margin 5px 0;bCódigob {parada['cp']}p
+            div
+            
+            
+            CircleMarker(
+                location=[parada['py'], parada['px']],
+                radius=6,
+                popup=folium.Popup(info_popup, max_width=280),
+                tooltip=fParada {parada['np']},
+                color='#1976D2',
+                fill=True,
+                fillColor='#2196F3',
+                fillOpacity=0.7
+            ).add_to(mapa_folium)
+        
+        # Adicionar veículos ao mapa
+        for veiculo in lista_veiculos
+            eh_acessivel = ✓ Sim if veiculo.get('a', False) else ✗ Não
+            horario_atualizacao = veiculo.get('ta', 'NA')
+            prefixo = veiculo['p']
+            
+            info_veiculo = f
+            div style=font-family Arial; width 250px;
+                h4 style=margin 0 0 10px 0; color #D32F2F;
+                    🚍 Veículo #{prefixo}
+                h4
+                p style=margin 5px 0;bAcessibilidadeb {eh_acessivel}p
+                p style=margin 5px 0;bAtualizado emb {horario_atualizacao}p
+                p style=margin 5px 0; font-size 11px; color #666;
+                    Lat {veiculo['py'].6f}  Lon {veiculo['px'].6f}
+                p
+            div
+            
+            
+            Marker(
+                location=[veiculo['py'], veiculo['px']],
+                popup=folium.Popup(info_veiculo, max_width=280),
+                tooltip=fÔnibus {prefixo},
+                icon=Icon(color='red', icon='bus', prefix='fa')
+            ).add_to(mapa_folium)
+        
+        # Adicionar painel de informações
+        painel_info = f'''
+        div style=position fixed; 
+                    top 15px; 
+                    right 15px; 
+                    width 300px; 
+                    background linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color white;
+                    border-radius 10px;
+                    z-index 9999; 
+                    font-family 'Segoe UI', Tahoma, sans-serif;
+                    padding 15px;
+                    box-shadow 0 4px 15px rgba(0,0,0,0.3);
+            h3 style=margin 0 0 15px 0; font-size 18px; border-bottom 2px solid rgba(255,255,255,0.3); padding-bottom 10px;
+                🚌 Linha {identificador_linha}
+            h3
+            
+            div style=margin-bottom 10px;
+                span style=font-size 16px;📍span
+                span style=margin-left 8px;bParadasb {qtd_paradas}span
+            div
+            
+            div style=margin-bottom 10px;
+                span style=font-size 16px;🚍span
+                span style=margin-left 8px;bÔnibus ativosb {qtd_veiculos}span
+            div
+            
+            div style=margin-bottom 15px;
+                span style=font-size 16px;🕐span
+                span style=margin-left 8px;bRef.b {horario_ref}span
+            div
+            
+            hr style=border none; border-top 1px solid rgba(255,255,255,0.3); margin 15px 0;
+            
+            div style=font-size 11px; opacity 0.9;
+                Gerado em {datetime.now().strftime('%d%m%Y às %H%M%S')}
+            div
+        div
+        '''
+        mapa_folium.get_root().html.add_child(folium.Element(painel_info))
+        
+        # Salvar mapa
+        nome_arquivo = frastreamento_linha_{cod_linha}.html
+        mapa_folium.save(nome_arquivo)
+        print(fn✅ Mapa gerado {nome_arquivo})
+        
+        return mapa_folium
+
+
+def executar_rastreamento()
+    Função principal de execução
+    
+    print(n + =70)
+    print(    SISTEMA DE RASTREAMENTO DE ÔNIBUS - SPTRANS OLHOVIVO)
+    print(=70)
+    
+    # ========================================================================
+    # ⚠️  IMPORTANTE INSIRA SEU TOKEN AQUI
+    # ========================================================================
+    # Obtenha seu token em httpswww.sptrans.com.brdesenvolvedores
+    
+    CHAVE_API = dea64a0f0b1cf28a4b944f2bad3f3bb1b468b676ea13b409e7d665caf5a2aed2
+    
+    # ========================================================================
+    
+    # Criar instância do rastreador
+    rastreador = RastreadorOnibusAPI(CHAVE_API)
+    
+    # Pesquisar linhas (exemplo linhas que passam pela Paulista)
+    print(n🔍 Pesquisando linhas...)
+    termo_pesquisa = Paulista
+    resultados = rastreador.pesquisar_linhas(termo_pesquisa)
+    
+    print(fn📋 Linhas encontradas {len(resultados)})
+    print(nPrimeiras 5 linhas)
+    print(-  70)
+    
+    for idx, linha in enumerate(resultados[5], 1)
+        print(f{idx}. {linha['lt']12}  {linha['tp']} ➜ {linha['ts']})
+        print(f   Código {linha['cl']})
+    
+    print(-  70)
+    
+    # ========================================================================
+    # CONFIGURAR LINHA PARA RASTREAMENTO
+    # ========================================================================
+    # Altere os valores abaixo para a linha desejada
+    
+    CODIGO_LINHA = 2503
+    NOME_LINHA = 2780-10
+    
+    # ========================================================================
+    
+    # Gerar mapa
+    rastreador.gerar_mapa_interativo(CODIGO_LINHA, NOME_LINHA)
+    
+    print(n + =70)
+    print(✅ PROCESSAMENTO FINALIZADO COM SUCESSO!)
+    print(=70)
+    print(n💡 Legenda do Mapa)
+    print(   🔵 Círculos azuis → Paradas da linha)
+    print(   🔴 Ícones vermelhos → Ônibus em tempo real)
+    print(n)
+
+
+if __name__ == __main__
+    try
+        executar_rastreamento()
+    except KeyboardInterrupt
+        print(nn⚠️  Operação cancelada pelo usuário.)
+    except Exception as erro
+        print(fn❌ Erro durante execução {erro})
+    finally
+        input(nPressione ENTER para sair...)
